@@ -164,8 +164,14 @@ String authErrorMessage(Object error) {
       'weak_password' => 'より強いパスワードを設定してください。',
       'user_already_exists' ||
       'email_exists' => '登録済みのメールアドレスです。ログインまたはパスワード再設定をお試しください。',
-      'over_email_send_rate_limit' ||
-      'over_request_rate_limit' => '操作が続いています。時間をおいて再度お試しください。',
+      'over_email_send_rate_limit' =>
+        '確認メールの送信上限に達しました。時間をおいてお試しください。すでに届いている確認メールもご確認ください。',
+      'over_request_rate_limit' => '短時間に操作が集中しています。少し待ってから再度お試しください。',
+      'email_address_not_authorized' =>
+        'このメールアドレスには確認メールを送信できません。管理者にお問い合わせください。',
+      'email_address_invalid' ||
+      'validation_failed' => '受信できる正しいメールアドレスを入力してください。',
+      'signup_disabled' => '現在、新規登録は受け付けていません。',
       'otp_expired' ||
       'flow_state_expired' ||
       'flow_state_not_found' => 'リンクが無効か期限切れです。メールを再送してお試しください。',

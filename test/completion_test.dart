@@ -107,12 +107,22 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('忘れていた「いつか」'),
       300,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const PageStorageKey('home-list')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     await tester.scrollUntilVisible(
       find.text('週末のカフェ').last,
       200,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const PageStorageKey('home-list')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     await tester.tap(find.text('週末のカフェ').last);
     await tester.pumpAndSettle();

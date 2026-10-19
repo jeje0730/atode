@@ -90,6 +90,10 @@ class _AtodeAppState extends State<AtodeApp> {
     scaffoldMessengerKey: messenger,
     title: 'あとで。',
     debugShowCheckedModeBanner: false,
+    scrollBehavior: const MaterialScrollBehavior().copyWith(
+      overscroll: false,
+      physics: const ClampingScrollPhysics(),
+    ),
     theme: ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
@@ -139,6 +143,37 @@ class _HomeState extends State<Home> {
   bool accountOpen = false;
   List<Item> items = [];
   int tab = 0;
+  final pages = PageController();
+  final search = TextEditingController();
+  int navigationRequest = 0;
+  bool navigating = false;
+
+  void switchTab(int index) {
+    if (loading || error != null || !pages.hasClients) return;
+    FocusScope.of(context).unfocus();
+    final request = ++navigationRequest;
+    navigating = true;
+    setState(() => tab = index);
+    if (MediaQuery.disableAnimationsOf(context)) {
+      pages.jumpToPage(index);
+      navigating = false;
+      return;
+    }
+    unawaited(
+      pages
+          .animateToPage(
+            index,
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeInOutCubic,
+          )
+          .whenComplete(() {
+            if (!mounted || request != navigationRequest) return;
+            navigating = false;
+            if (pages.hasClients) setState(() => tab = pages.page!.round());
+          }),
+    );
+  }
+
   bool loading = true;
   String? error;
   String query = '',
@@ -199,6 +234,8 @@ class _HomeState extends State<Home> {
   @override
   void dispose() {
     receiver.dispose();
+    pages.dispose();
+    search.dispose();
     super.dispose();
   }
 
@@ -605,9 +642,18 @@ class _HomeState extends State<Home> {
         : Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 680),
-              child: IndexedStack(
-                index: tab,
-                children: [home(), library(), propose(), history()],
+              child: PageView(
+                key: const PageStorageKey('main-tabs'),
+                controller: pages,
+                onPageChanged: (index) {
+                  if (!navigating) setState(() => tab = index);
+                },
+                children: [
+                  home(),
+                  library(),
+                  propose(),
+                  history(),
+                ].map((page) => _RetainedTab(child: page)).toList(),
               ),
             ),
           ),
@@ -620,7 +666,7 @@ class _HomeState extends State<Home> {
     ),
     bottomNavigationBar: NavigationBar(
       selectedIndex: tab,
-      onDestinationSelected: (i) => setState(() => tab = i),
+      onDestinationSelected: switchTab,
       destinations: const [
         NavigationDestination(icon: Icon(Icons.home_outlined), label: 'ホーム'),
         NavigationDestination(
@@ -644,6 +690,7 @@ class _HomeState extends State<Home> {
         )
         .toList();
     return ListView(
+      key: const PageStorageKey('home-list'),
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
       children: [
         const Text(
@@ -690,7 +737,7 @@ class _HomeState extends State<Home> {
               ),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: () => setState(() => tab = 2),
+                onPressed: () => switchTab(2),
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFFE6D7AF),
                   foregroundColor: ink,
@@ -710,11 +757,13 @@ class _HomeState extends State<Home> {
                   label: Text(
                     '$c  ${items.where((i) => i.category == c && i.status == '未完了').length}',
                   ),
-                  onPressed: () => setState(() {
-                    category = c;
-                    status = '未完了';
-                    tab = 1;
-                  }),
+                  onPressed: () {
+                    setState(() {
+                      category = c;
+                      status = '未完了';
+                    });
+                    switchTab(1);
+                  },
                 ),
               )
               .toList(),
@@ -762,7 +811,7 @@ class _HomeState extends State<Home> {
       );
       rows.add(
         OutlinedButton(
-          onPressed: () => setState(() => tab = 1),
+          onPressed: () => switchTab(1),
           child: const Text('保存一覧を見る'),
         ),
       );
@@ -784,6 +833,7 @@ class _HomeState extends State<Home> {
       );
     }
     return ListView(
+      key: const PageStorageKey('history-list'),
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
       children: rows,
     );
@@ -803,10 +853,12 @@ class _HomeState extends State<Home> {
       oldestFirst: sortOrder == '古い順',
     );
     return ListView(
+      key: const PageStorageKey('library-list'),
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
       children: [
         heading('あなたの「あとで」'),
         TextField(
+          controller: search,
           decoration: const InputDecoration(
             hintText: 'タイトル・メモ・URLで検索',
             prefixIcon: Icon(Icons.search),
@@ -867,6 +919,7 @@ class _HomeState extends State<Home> {
   }
 
   Widget propose() => ListView(
+    key: const PageStorageKey('proposal-list'),
     padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
     children: [
       heading('今日どうする？'),
@@ -960,6 +1013,24 @@ class _HomeState extends State<Home> {
       ],
     ],
   );
+}
+
+class _RetainedTab extends StatefulWidget {
+  const _RetainedTab({required this.child});
+  final Widget child;
+  @override
+  State<_RetainedTab> createState() => _RetainedTabState();
+}
+
+class _RetainedTabState extends State<_RetainedTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
 }
 
 Widget heading(String s) => Padding(

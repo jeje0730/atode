@@ -84,6 +84,35 @@ class FakeAccountAuth extends AccountAuth {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
+    'auth errors distinguish email sending quota from request throttling',
+    () {
+      final email = authErrorMessage(
+        const AuthException('rate limit', code: 'over_email_send_rate_limit'),
+      );
+      final requests = authErrorMessage(
+        const AuthException('rate limit', code: 'over_request_rate_limit'),
+      );
+      expect(email, contains('確認メールの送信上限'));
+      expect(requests, contains('短時間に操作が集中'));
+      expect(email, isNot(requests));
+      expect(
+        authErrorMessage(
+          const AuthException(
+            'unauthorized',
+            code: 'email_address_not_authorized',
+          ),
+        ),
+        contains('確認メールを送信できません'),
+      );
+      expect(
+        authErrorMessage(
+          const AuthException('invalid', code: 'email_address_invalid'),
+        ),
+        contains('正しいメールアドレス'),
+      );
+    },
+  );
+  test(
     'config rejects secret keys and validates credentials and DB isolation',
     () {
       expect(
